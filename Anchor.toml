@@ -1,0 +1,21 @@
+[toolchain]
+
+[features]
+seeds = false
+skip-lint = false
+
+[programs.devnet]
+payment-control = "H7mLLoUULceT1iL7XzsYZZCP6Ax7mWQoRDudJLruKkq2"
+
+[programs.localnet]
+payment-control = "H7mLLoUULceT1iL7XzsYZZCP6Ax7mWQoRDudJLruKkq2"
+
+[registry]
+url = "https://api.apr.dev"
+
+[provider]
+cluster = "Devnet"
+wallet = "/root/.config/solana/id.json"
+
+[scripts]
+test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
