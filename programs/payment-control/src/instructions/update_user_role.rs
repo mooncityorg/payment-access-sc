@@ -10,11 +10,9 @@ pub struct UpdateUserRole<'info> {
     pub user: SystemAccount<'info>,
 
     #[account(
-        init_if_needed,
+        mut,
         seeds = [GLOBAL_STATE_SEED.as_ref()],
         bump,
-        space = GlobalState::DATA_SIZE,
-        payer = admin,
     )]
     pub global_state: Box<Account<'info, GlobalState>>,
 
@@ -35,7 +33,12 @@ pub fn update_user_role(ctx: Context<UpdateUserRole>, is_publisher: bool) -> Res
     let accts = ctx.accounts;
     require!(accts.global_state.admin.eq(&accts.admin.key()), PaymentControlError::InvalidAdmin);
 
-    // accts.user_role.address = accts.user.key();
+    if accts.user_role.address.key().eq(&Pubkey::default()) {
+        accts.user_role.address = accts.user.key();
+    }
+    else {
+        require!(accts.user_role.address.key().eq(&accts.user.key()), PaymentControlError::InvalidUserRole);
+    }
     accts.user_role.is_publisher = is_publisher;
 
     Ok(())

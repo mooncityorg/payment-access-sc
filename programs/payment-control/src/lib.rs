@@ -31,8 +31,8 @@ pub mod payment {
         instructions::update_user_role(ctx, is_publisher)
     }
 
-    pub fn create_topic(ctx: Context<CreateTopic>, cost_token_mint: Pubkey, license_cost: u64) -> Result<()> {
-        instructions::create_topic(ctx, cost_token_mint, license_cost)
+    pub fn create_topic(ctx: Context<CreateTopic>, license_cost: u64) -> Result<()> {
+        instructions::create_topic(ctx, license_cost)
     }
 
     pub fn update_topic(ctx: Context<UpdateTopic>, license_cost: u64) -> Result<()> {

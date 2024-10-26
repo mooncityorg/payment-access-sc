@@ -1,33 +1,34 @@
 use anchor_lang::prelude::*;
 use crate::{constants::*, state::*, error::*};
-use anchor_spl::token::TokenAccount;
+use anchor_spl::token::Mint;
 
 #[derive(Accounts)]
 pub struct RevokeLicense<'info> {
     #[account(mut)]
-    pub user: Signer<'info>,
+    pub publisher: Signer<'info>,
+
+    pub subscriber: SystemAccount<'info>,
 
     #[account(
-        init_if_needed,
-        seeds = [USER_ROLE_SEED.as_ref(), user.key().as_ref()],
-        bump,
-        space = UserRole::DATA_SIZE,
-        payer = user
+        seeds = [USER_ROLE_SEED.as_ref(), publisher.key().as_ref()],
+        bump
     )]
-    pub user_role: Box<Account<'info, UserRole>>,
+    pub publisher_role: Box<Account<'info, UserRole>>,
 
     #[account(
-        init_if_needed,
-        seeds = [LICENSE_INFO_SEED.as_ref(), user.key().as_ref(), topic.key().as_ref()],
-        bump,
-        space = LicenseInfo::DATA_SIZE,
-        payer = user
+        seeds = [LICENSE_INFO_SEED.as_ref(), subscriber.key().as_ref(), topic_info.key().as_ref()],
+        bump
     )]
     pub license_info: Box<Account<'info, LicenseInfo>>,
 
-    #[account(mut)]
-    pub topic: Box<Account<'info, TokenAccount>>,
+    #[account(
+        seeds = [TOPIC_INFO_SEED.as_ref(), publisher.key().as_ref(), nft_mint.key().as_ref()],
+        bump
+    )]
+    pub topic_info: Box<Account<'info, TopicInfo>>,
 
+    pub nft_mint: Box<Account<'info, Mint>>,
+    
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
 
@@ -36,7 +37,7 @@ pub struct RevokeLicense<'info> {
 pub fn revoke_license(ctx: Context<RevokeLicense>) -> Result<()> {
     let accts = ctx.accounts;
 
-    require!(accts.user_role.is_publisher.eq(&true), PaymentControlError::InvalidSubscriber);
+    require!(accts.publisher_role.is_publisher.eq(&true), PaymentControlError::InvalidPublisher);
 
     accts.license_info.purchased = false;
 

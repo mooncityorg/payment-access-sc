@@ -7,16 +7,11 @@ pub struct TransferGlobalAdmin<'info> {
     pub admin: Signer<'info>,
 
     #[account(
-        init,
+        mut,
         seeds = [GLOBAL_STATE_SEED.as_ref()],
-        bump,
-        space = GlobalState::DATA_SIZE,
-        payer = admin,
+        bump
     )]
     pub global_state: Box<Account<'info, GlobalState>>,
-
-    pub system_program: Program<'info, System>,
-    pub rent: Sysvar<'info, Rent>,
 }
 
 pub fn transfer_global_admin(ctx: Context<TransferGlobalAdmin>, new_admin: Pubkey) -> Result<()> {

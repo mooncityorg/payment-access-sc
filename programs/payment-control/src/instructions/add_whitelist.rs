@@ -7,27 +7,23 @@ pub struct AddWhiteList<'info> {
     pub user: Signer<'info>,
 
     #[account(
-        init,
+        mut,
         seeds = [GLOBAL_STATE_SEED.as_ref()],
-        bump,
-        space = GlobalState::DATA_SIZE,
-        payer = user,
+        bump
     )]
     pub global_state: Box<Account<'info, GlobalState>>,
 
     #[account{
         init_if_needed,
-        seeds = [USER_ROLE_SEED.as_ref(), user.key().as_ref()],
+        seeds = [USER_ROLE_SEED.as_ref(), publisher.key().as_ref()],
         bump,
         space = UserRole::DATA_SIZE,
         payer = user
     }]
-    pub user_role: Box<Account<'info, UserRole>>,
+    pub publisher_role: Box<Account<'info, UserRole>>,
 
-    #[account(mut)]
     pub publisher: SystemAccount<'info>,
 
-    #[account(mut)]
     pub subscriber: SystemAccount<'info>,
 
     #[account(
@@ -46,7 +42,7 @@ pub struct AddWhiteList<'info> {
 pub fn add_white_list(ctx: Context<AddWhiteList>) -> Result<()> {
     let accts = ctx.accounts;
     
-    require!(accts.user_role.is_publisher.eq(&true) || accts.global_state.admin.eq(&accts.user.key()), PaymentControlError::InvalidPublisher);
+    require!(accts.publisher_role.is_publisher.eq(&true) || accts.global_state.admin.eq(&accts.user.key()), PaymentControlError::InvalidPublisher);
 
     accts.white_list_info.publisher = accts.publisher.key();
     accts.white_list_info.subscriber = accts.subscriber.key();

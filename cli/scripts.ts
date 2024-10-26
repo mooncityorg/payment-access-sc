@@ -4,8 +4,8 @@ import * as anchor from '@coral-xyz/anchor';
 import { ComputeBudgetProgram, Connection, Keypair, Transaction, PublicKey } from '@solana/web3.js';
 import fs from 'fs';
 import { PROGRAM_ID } from '../lib/constants';
-import { IDL } from '../target/types/uranus';
-import { createInitializeIx, getGlobalState, mintNftIx, setFeeWalletIx, setPriceIx } from '../lib/scripts';
+import { IDL } from '../target/types/payment';
+import { addWhiteListIx, createInitializeIx, createTopicIx, getGlobalState, getLicenseInfoState, getTopicInfoState, getUserRoleInfoState, getWhiteListInfoState, initUserRoleIx, purchaseLicenseIx, removeWhiteListIx, revokeLicenseIx, transferGlobalAdminIx, updateTopicIx, updateUserRoleIx } from '../lib/scripts';
 
 interface ISetConnectionParams {
     cluster: web3.Cluster; // env from CLI global params
@@ -64,6 +64,26 @@ export const getGlobalInfo = async () => {
     console.log('global state: ', globalState);
 };
 
+export const getUserRoleInfo = async (user: PublicKey) => {
+    const userRoleInfoState = await getUserRoleInfoState(user, program);
+    console.log('user role: ', userRoleInfoState);
+}
+
+export const getTopicInfo = async (publisher: PublicKey, nftMint: PublicKey) => {
+    const topicInfo = await getTopicInfoState(publisher, nftMint, program);
+    console.log('topic info: ', topicInfo);
+}
+
+export const getWhiteListInfo = async (publisher: PublicKey, subscriber: PublicKey) => {
+    const whiteListInfo = await getWhiteListInfoState(publisher, subscriber, program);
+    console.log('white list info: ', whiteListInfo);
+}
+
+export const getLicenseInfo = async (publisher: PublicKey, subscriber: PublicKey, nftMint: PublicKey) => {
+    const licenseInfo = await getLicenseInfoState(publisher, subscriber, nftMint, program);
+    console.log('license info: ', licenseInfo);
+}
+
 export const initProject = async () => {
     try {
         const tx = new Transaction().add(
@@ -96,11 +116,11 @@ export const getGasIxs = () => {
     return [updateCpIx, updateCuIx];
 };
 
-export const setPrice = async (price: anchor.BN) => {
+export const transferGlobalAdmin = async (newAdmin: PublicKey) => {
     try {
         const tx = new Transaction().add(
             ...getGasIxs(),
-            await setPriceIx(payer.publicKey, price, program)
+            await transferGlobalAdminIx(payer.publicKey, newAdmin, program)
         );
         const { blockhash } = await solConnection.getLatestBlockhash();
         tx.recentBlockhash = blockhash;
@@ -118,11 +138,11 @@ export const setPrice = async (price: anchor.BN) => {
     }
 }
 
-export const setFeeWallet = async (feeWallet: PublicKey) => {
+export const initUserRole = async () => {
     try {
         const tx = new Transaction().add(
             ...getGasIxs(),
-            await setFeeWalletIx(payer.publicKey, feeWallet, program)
+            await initUserRoleIx(payer.publicKey, program)
         );
         const { blockhash } = await solConnection.getLatestBlockhash();
         tx.recentBlockhash = blockhash;
@@ -140,12 +160,11 @@ export const setFeeWallet = async (feeWallet: PublicKey) => {
     }
 }
 
-export const mintNft = async (rpc: string) => {
+export const updateUserRole = async (isPublisher: boolean, userAddress: PublicKey) => {
     try {
-        const payload = await mintNftIx(payer.payer, rpc, program);
         const tx = new Transaction().add(
             ...getGasIxs(),
-            payload.instruction
+            await updateUserRoleIx(payer.publicKey, userAddress, isPublisher, program)
         );
         const { blockhash } = await solConnection.getLatestBlockhash();
         tx.recentBlockhash = blockhash;
@@ -153,9 +172,141 @@ export const mintNft = async (rpc: string) => {
 
         payer.signTransaction(tx);
 
-        const txId = await provider.sendAndConfirm(tx, [payload.signer], {
+        const txId = await provider.sendAndConfirm(tx, [], {
             commitment: 'confirmed',
-            // skipPreflight: true
+        });
+
+        console.log('txHash: ', `https://solana.fm/tx/${txId}?cluster=devnet-alpha`);
+    } catch (e) {
+        console.log(e);
+    }
+}
+
+export const createTopic = async (nftMint: PublicKey, costTokenMint: PublicKey, licenseCost: anchor.BN) => {
+    try {
+        const tx = new Transaction().add(
+            ...getGasIxs(),
+            await createTopicIx(payer.publicKey, nftMint, costTokenMint, licenseCost, program)
+        );
+        const { blockhash } = await solConnection.getLatestBlockhash();
+        tx.recentBlockhash = blockhash;
+        tx.feePayer = payer.publicKey;
+
+        payer.signTransaction(tx);
+
+        const txId = await provider.sendAndConfirm(tx, [], {
+            commitment: 'confirmed',
+        });
+
+        console.log('txHash: ', `https://solana.fm/tx/${txId}?cluster=devnet-alpha`);
+    } catch (e) {
+        console.log(e);
+    }
+}
+
+export const updateTopic = async (nftMint: PublicKey, costTokenMint: PublicKey, licenseCost: anchor.BN) => {
+    try {
+        const tx = new Transaction().add(
+            ...getGasIxs(),
+            await updateTopicIx(payer.publicKey, nftMint, costTokenMint, licenseCost, program)
+        );
+        const { blockhash } = await solConnection.getLatestBlockhash();
+        tx.recentBlockhash = blockhash;
+        tx.feePayer = payer.publicKey;
+
+        payer.signTransaction(tx);
+
+        const txId = await provider.sendAndConfirm(tx, [], {
+            commitment: 'confirmed',
+        });
+
+        console.log('txHash: ', `https://solana.fm/tx/${txId}?cluster=devnet-alpha`);
+    } catch (e) {
+        console.log(e);
+    }
+}
+
+export const addWhiteList = async (subscriber: PublicKey) => {
+    try {
+        const tx = new Transaction().add(
+            ...getGasIxs(),
+            await addWhiteListIx(payer.publicKey, payer.publicKey, subscriber, program)
+        );
+        const { blockhash } = await solConnection.getLatestBlockhash();
+        tx.recentBlockhash = blockhash;
+        tx.feePayer = payer.publicKey;
+
+        payer.signTransaction(tx);
+
+        const txId = await provider.sendAndConfirm(tx, [], {
+            commitment: 'confirmed',
+        });
+
+        console.log('txHash: ', `https://solana.fm/tx/${txId}?cluster=devnet-alpha`);
+    } catch (e) {
+        console.log(e);
+    }
+}
+
+export const removeWhiteList = async (subscriber: PublicKey) => {
+    try {
+        const tx = new Transaction().add(
+            ...getGasIxs(),
+            await removeWhiteListIx(payer.publicKey, payer.publicKey, subscriber, program)
+        );
+        const { blockhash } = await solConnection.getLatestBlockhash();
+        tx.recentBlockhash = blockhash;
+        tx.feePayer = payer.publicKey;
+
+        payer.signTransaction(tx);
+
+        const txId = await provider.sendAndConfirm(tx, [], {
+            commitment: 'confirmed',
+        });
+
+        console.log('txHash: ', `https://solana.fm/tx/${txId}?cluster=devnet-alpha`);
+    } catch (e) {
+        console.log(e);
+    }
+}
+
+export const purchaseLicense = async (publisher: PublicKey, nftMint: PublicKey, costTokenMint: PublicKey) => {
+    try {
+        const tx = new Transaction().add(
+            ...getGasIxs(),
+            await purchaseLicenseIx(payer.publicKey, publisher, nftMint, costTokenMint, program)
+        );
+        const { blockhash } = await solConnection.getLatestBlockhash();
+        tx.recentBlockhash = blockhash;
+        tx.feePayer = payer.publicKey;
+
+        payer.signTransaction(tx);
+
+        const txId = await provider.connection.sendTransaction(tx, [payer.payer], {
+            preflightCommitment: 'confirmed',
+            // skipPreflight: true,
+        });
+
+        console.log('txHash: ', `https://solana.fm/tx/${txId}?cluster=devnet-alpha`);
+    } catch (e) {
+        console.log(e);
+    }
+}
+
+export const revokeLicense = async (publisher: PublicKey, nftMint: PublicKey) => {
+    try {
+        const tx = new Transaction().add(
+            ...getGasIxs(),
+            await revokeLicenseIx(payer.publicKey, publisher, nftMint, program)
+        );
+        const { blockhash } = await solConnection.getLatestBlockhash();
+        tx.recentBlockhash = blockhash;
+        tx.feePayer = payer.publicKey;
+
+        payer.signTransaction(tx);
+
+        const txId = await provider.sendAndConfirm(tx, [], {
+            commitment: 'confirmed',
         });
 
         console.log('txHash: ', `https://solana.fm/tx/${txId}?cluster=devnet-alpha`);

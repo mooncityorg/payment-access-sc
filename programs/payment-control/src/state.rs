@@ -48,8 +48,8 @@ impl WhiteListInfo {
 pub struct LicenseInfo {
     pub topic: Pubkey, // topic PDA address
     pub subscriber: Pubkey, // subscriber address
-    pub purchased: bool, // purchased status
     pub purchased_at: i64, // purchased timestamp
+    pub purchased: bool, // purchased status
 }
 
 impl LicenseInfo {

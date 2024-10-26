@@ -7,22 +7,17 @@ pub struct RemoveWhiteList<'info> {
     pub user: Signer<'info>,
 
     #[account(
-        init,
+        mut,
         seeds = [GLOBAL_STATE_SEED.as_ref()],
-        bump,
-        space = GlobalState::DATA_SIZE,
-        payer = user
+        bump
     )]
     pub global_state: Box<Account<'info, GlobalState>>,
 
     #[account{
-        init,
-        seeds = [USER_ROLE_SEED.as_ref(), user.key().as_ref()],
-        bump,
-        space = UserRole::DATA_SIZE,
-        payer = user
+        seeds = [USER_ROLE_SEED.as_ref(), publisher.key().as_ref()],
+        bump
     }]
-    pub user_role: Box<Account<'info, UserRole>>,
+    pub publisher_role: Box<Account<'info, UserRole>>,
 
     #[account(
         init_if_needed,
@@ -33,10 +28,8 @@ pub struct RemoveWhiteList<'info> {
     )]
     pub white_list_info: Box<Account<'info, WhiteListInfo>>,
 
-    #[account(mut)]
     pub publisher: SystemAccount<'info>,
 
-    #[account(mut)]
     pub subscriber: SystemAccount<'info>,
 
     pub system_program: Program<'info, System>,
@@ -46,10 +39,12 @@ pub struct RemoveWhiteList<'info> {
 pub fn remove_white_list(ctx: Context<RemoveWhiteList>) -> Result<()> {
     let accts = ctx.accounts;
     require!(
-        accts.user_role.is_publisher.eq(&true) || accts.global_state.admin.eq(&accts.user.key()),
+        accts.publisher_role.is_publisher.eq(&true) || accts.global_state.admin.eq(&accts.user.key()),
         PaymentControlError::InvalidPublisher
     );
 
+    accts.white_list_info.publisher = accts.publisher.key();
+    accts.white_list_info.subscriber = accts.subscriber.key();
     accts.white_list_info.allowed = false;
 
     Ok(())

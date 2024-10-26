@@ -1,25 +1,20 @@
 import { Keypair, PublicKey, SystemProgram } from "@solana/web3.js";
 import * as anchor from '@coral-xyz/anchor';
-import { GLOBAL_STATE_SEED, VAULT_SEED } from "./constants";
-import { GlobalState } from "./types";
-import { ASSOCIATED_TOKEN_PROGRAM_ID, getAssociatedTokenAddress, TOKEN_PROGRAM_ID } from "@solana/spl-token";
-import { createUmi } from "@metaplex-foundation/umi-bundle-defaults";
-import { walletAdapterIdentity } from "@metaplex-foundation/umi-signer-wallet-adapters";
-import { findMasterEditionPda, findMetadataPda, MPL_TOKEN_METADATA_PROGRAM_ID, mplTokenMetadata } from "@metaplex-foundation/mpl-token-metadata";
-import { publicKey } from "@metaplex-foundation/umi";
+import { GLOBAL_STATE_SEED, LICENSE_INFO_SEED, TOPIC_INFO_SEED, USER_ROLE_SEED, WHITE_LIST_SEED } from "./constants";
+import { GlobalState, LicenseInfo, TopicInfo, UserRole, WhiteListInfo } from "./types";
+import { ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID } from "@solana/spl-token";
+import { getAssociatedTokenAccount } from "./utils";
 
 export const createInitializeIx = async (
-    owner: PublicKey,
+    admin: PublicKey,
     program: anchor.Program
 ) => {
     const globalState = findGlobalStatePda(program.programId);
-    const vault = findVaultPda(program.programId);
     const ix = await program.methods
         .initialize()
         .accounts({
-            owner,
+            admin,
             globalState,
-            vault,
             systemProgram: SystemProgram.programId
         })
         .instruction();
@@ -27,100 +22,227 @@ export const createInitializeIx = async (
     return ix;
 }
 
-export const mintNftIx = async (
-    owner: Keypair,
-    endPoint: string,
+export const transferGlobalAdminIx = async (
+    admin: PublicKey,
+    newAdmin: PublicKey,
     program: anchor.Program
 ) => {
-    const globalData = await getGlobalState(program);
-    const mintAddress = anchor.web3.Keypair.generate();
-    const nftTokenAccount = await getAssociatedTokenAddress(
-        mintAddress.publicKey,
-        owner.publicKey
-    );
+    const globalState = findGlobalStatePda(program.programId);
+    const ix = await program.methods
+        .transferGlobalAdmin(newAdmin)
+        .accounts({
+            admin,
+            globalState
+        })
+        .instruction();
 
-    const umi = createUmi(endPoint)
-        .use(walletAdapterIdentity(owner))
-        .use(mplTokenMetadata());
+    return ix;
+}
 
-    // derive the metedata account
-    const metadataAccount = findMetadataPda(umi, {
-        mint: publicKey(mintAddress.publicKey)
-    })[0];
-
-    // derive the master edition pda
-    const masterEditionAccount = findMasterEditionPda(umi, {
-        mint: publicKey(mintAddress.publicKey)
-    })[0];
-
-    const metadata = {
-        name: "Basic Uranus",
-        symbol: "Uranus",
-        uri: "https://raw.githubusercontent.com/687c/solana-nft-native-client/main/metadata.json",
-    };
-
-    const rentSysvar = anchor.web3.SYSVAR_RENT_PUBKEY;
+export const initUserRoleIx = async (
+    user: PublicKey,
+    program: anchor.Program
+) => {
+    const userRole = findUserRolePda(user, program.programId);
 
     const ix = await program.methods
-        .mintNft(
-        metadata.name,
-        metadata.symbol,
-        metadata.uri)
+        .initUserRole()
         .accounts({
-            user: owner.publicKey,
-            globalState: globalData.key,
-            vault: globalData.data.vault,
-            feeWallet: globalData.data.feeWallet,
-            nftMint: mintAddress.publicKey,
-            userNftTokenAccount: nftTokenAccount,
-            nftMetadataAccount: metadataAccount,
-            nftMasterEditionAccount: masterEditionAccount,
+            user,
+            userRole,
+            systemProgram: SystemProgram.programId
+        })
+        .instruction();
+
+    return ix;
+}
+
+export const updateUserRoleIx = async (
+    admin: PublicKey,
+    user: PublicKey,
+    isPublisher: boolean,
+    program: anchor.Program
+) => {
+    const globalState = findGlobalStatePda(program.programId);
+    const userRole = findUserRolePda(admin, program.programId);
+
+    const ix = await program.methods
+        .updateUserRole(isPublisher)
+        .accounts({
+            admin,
+            user,
+            globalState,
+            userRole,
+            systemProgram: SystemProgram.programId
+        })
+        .instruction();
+
+    return ix;
+}
+
+export const createTopicIx = async (
+    publisher: PublicKey,
+    nftMint: PublicKey,
+    costTokenMint: PublicKey,
+    licenseCost: anchor.BN,
+    program: anchor.Program
+) => {
+    const userRole = findUserRolePda(publisher, program.programId);
+    const topicInfo = findTopicInfoPda(publisher, nftMint, program.programId);
+
+    const ix = await program.methods
+        .createTopic(licenseCost)
+        .accounts({
+            publisher,
+            userRole,
+            topicInfo,
+            nftMint,
+            costTokenMint,
+            systemProgram: SystemProgram.programId
+        })
+        .instruction();
+
+    return ix;
+}
+
+export const updateTopicIx = async (
+    publisher: PublicKey,
+    nftMint: PublicKey,
+    costTokenMint: PublicKey,
+    licenseCost: anchor.BN,
+    program: anchor.Program
+) => {
+    const userRole = findUserRolePda(publisher, program.programId);
+    const topicInfo = findTopicInfoPda(publisher, nftMint, program.programId);
+
+    const ix = await program.methods
+        .updateTopic(licenseCost)
+        .accounts({
+            publisher,
+            userRole,
+            topicInfo,
+            nftMint,
+            costTokenMint
+        })
+        .instruction();
+
+    return ix;
+}
+
+export const addWhiteListIx = async (
+    user: PublicKey,
+    publisher: PublicKey,
+    subscriber: PublicKey,
+    program: anchor.Program
+) => {
+    const globalState = findGlobalStatePda(program.programId);
+    const publisherRole = findUserRolePda(publisher, program.programId);
+    const whiteListInfo = findWhiteListInfoPda(publisher, subscriber, program.programId);
+
+    const ix = await program.methods
+        .addWhiteList()
+        .accounts({
+            user,
+            globalState,
+            publisherRole,
+            publisher,
+            subscriber,
+            whiteListInfo,
+            systemProgram: SystemProgram.programId
+        })
+        .instruction();
+
+    return ix;
+}
+
+export const removeWhiteListIx = async (
+    user: PublicKey,
+    publisher: PublicKey,
+    subscriber: PublicKey,
+    program: anchor.Program
+) => {
+    const globalState = findGlobalStatePda(program.programId);
+    const publisherRole = findUserRolePda(publisher, program.programId);
+    const whiteListInfo = findWhiteListInfoPda(publisher, subscriber, program.programId);
+
+    const ix = await program.methods
+        .removeWhiteList()
+        .accounts({
+            user,
+            globalState,
+            publisherRole,
+            publisher,
+            subscriber,
+            whiteListInfo,
+            systemProgram: SystemProgram.programId
+        })
+        .instruction();
+
+    return ix;
+}
+
+export const purchaseLicenseIx = async (
+    subscriber: PublicKey,
+    publisher: PublicKey,
+    nftMint: PublicKey,
+    costTokenMint: PublicKey,
+    program: anchor.Program
+) => {
+    const subscriberRole = findUserRolePda(subscriber, program.programId);
+    const topicInfo = findTopicInfoPda(publisher, nftMint, program.programId);
+    const licenseInfo = findLicenseInfoPda(subscriber, topicInfo, program.programId);
+
+    const publisherTokenAccount = await getAssociatedTokenAccount(publisher, costTokenMint);
+
+    const subscriberTokenAccount = await getAssociatedTokenAccount(subscriber, costTokenMint);
+
+    const ix = await program.methods
+        .purchaseLicense()
+        .accounts({
+            subscriber,
+            subscriberRole,
+            licenseInfo,
+            topicInfo,
+            publisher,
+            publisherTokenAccount,
+            subscriberTokenAccount,
+            nftMint,
+            costTokenMint,
+            systemProgram: SystemProgram.programId,
             tokenProgram: TOKEN_PROGRAM_ID,
             associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-            tokenMetadataProgram: MPL_TOKEN_METADATA_PROGRAM_ID,
-            systemProgram: SystemProgram.programId,
-            rent: rentSysvar
         })
         .instruction();
-
-    return {instruction: ix, signer: mintAddress};
+    
+    return ix;
 }
 
-export const setPriceIx = async (
-    owner: PublicKey,
-    price: anchor.BN,
+export const revokeLicenseIx = async (
+    publisher: PublicKey,
+    subscriber: PublicKey,
+    nftMint: PublicKey,
     program: anchor.Program
 ) => {
-    const globalState = findGlobalStatePda(program.programId);
+    const publisherRole = findUserRolePda(publisher, program.programId);
+    const topicInfo = findTopicInfoPda(publisher, nftMint, program.programId);
+    const licenseInfo = findLicenseInfoPda(subscriber, topicInfo, program.programId);
 
     const ix = await program.methods
-        .setPrice(price)
+        .revokeLicense()
         .accounts({
-            owner,
-            globalState
+            publisher,
+            subscriber,
+            publisherRole,
+            licenseInfo,
+            topicInfo,
+            nftMint,
+            systemProgram: SystemProgram.programId
         })
         .instruction();
 
     return ix;
 }
 
-export const setFeeWalletIx = async (
-    owner: PublicKey,
-    feeWallet: PublicKey,
-    program: anchor.Program
-) => {
-    const globalState = findGlobalStatePda(program.programId);
-
-    const ix = await program.methods
-        .setFeeWallet(feeWallet)
-        .accounts({
-            owner,
-            globalState
-        })
-        .instruction();
-
-    return ix;
-}
 
 export const findGlobalStatePda = (programId: PublicKey) => {
     const [globalState] = PublicKey.findProgramAddressSync(
@@ -140,10 +262,81 @@ export const getGlobalState = async (program: anchor.Program) => {
     };
 };
 
-export const findVaultPda = (programId: PublicKey) => {
-    const [vault] = PublicKey.findProgramAddressSync(
-        [Buffer.from(VAULT_SEED)],
+export const getUserRoleInfoState = async (user: PublicKey, program: anchor.Program) => {
+    const userRoleInfo = findUserRolePda(user, program.programId);
+    // console.log("🚀 ~ getUserRoleInfoState ~ findUserRolePda:", userRoleInfo)
+    // console.log(program.account)
+    const userRoleInfoData = await program.account.userRole.fetch(userRoleInfo);
+
+    return {
+        key: userRoleInfo,
+        data: userRoleInfoData as unknown as UserRole,
+    };
+};
+
+export const getTopicInfoState = async (publisher: PublicKey, nftMint: PublicKey, program: anchor.Program) => {
+    const topicInfo = findTopicInfoPda(publisher, nftMint, program.programId);
+    const topicInfoData = await program.account.topicInfo.fetch(topicInfo);
+
+    return {
+        key: topicInfo,
+        data: topicInfoData as unknown as TopicInfo,
+    };
+};
+
+export const getWhiteListInfoState = async (publisher: PublicKey, subscriber:PublicKey, program: anchor.Program) => {
+    const whiteListInfo = findWhiteListInfoPda(publisher, subscriber, program.programId);
+    const whiteListInfoData = await program.account.whiteListInfo.fetch(whiteListInfo);
+
+    return {
+        key: whiteListInfo,
+        data: whiteListInfoData as unknown as WhiteListInfo,
+    };
+};
+
+export const getLicenseInfoState = async (publisher: PublicKey, subscriber: PublicKey, nftMint: PublicKey, program: anchor.Program) => {
+    const topicInfo = findTopicInfoPda(publisher, nftMint, program.programId);
+    const licenseInfo = findLicenseInfoPda(subscriber, topicInfo, program.programId);
+    const licenseInfoData = await program.account.licenseInfo.fetch(licenseInfo);
+
+    return {
+        key: licenseInfo,
+        data: licenseInfoData as unknown as LicenseInfo,
+    };
+};
+
+export const findUserRolePda = (user: PublicKey, programId: PublicKey) => {
+    const [userRole] = PublicKey.findProgramAddressSync(
+        [Buffer.from(USER_ROLE_SEED), user.toBytes()],
+        programId
+    );
+
+    return userRole;
+}
+
+export const findTopicInfoPda = (publisher: PublicKey, nftMint: PublicKey, programId: PublicKey) => {
+    const [topicInfo] = PublicKey.findProgramAddressSync(
+        [Buffer.from(TOPIC_INFO_SEED), publisher.toBytes(), nftMint.toBytes()],
+        programId
+    );
+
+    return topicInfo;
+}
+
+export const findWhiteListInfoPda = (publisher: PublicKey, subscriber: PublicKey, programId: PublicKey) => {
+    const [whiteListInfo] = PublicKey.findProgramAddressSync(
+        [Buffer.from(WHITE_LIST_SEED), publisher.toBytes(), subscriber.toBytes()],
         programId
     )
-    return vault;
+
+    return whiteListInfo;
+}
+
+export const findLicenseInfoPda = (subscriber: PublicKey, topic: PublicKey, programId: PublicKey) => {
+    const [licenseInfo] = PublicKey.findProgramAddressSync(
+        [Buffer.from(LICENSE_INFO_SEED), subscriber.toBytes(), topic.toBytes()],
+        programId
+    );
+
+    return licenseInfo;
 }

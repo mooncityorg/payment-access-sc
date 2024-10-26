@@ -7,7 +7,7 @@ pub struct Initialize<'info> {
     pub admin: Signer<'info>,
 
     #[account(
-        init,
+        init_if_needed,
         seeds = [GLOBAL_STATE_SEED.as_ref()],
         bump,
         space = GlobalState::DATA_SIZE,
