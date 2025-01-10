@@ -94,7 +94,7 @@ yarn script purchase-license -p B7Hd5i7xh92jXPC8NzC96f4vpgV8SfVw4WJ2zgPfR89S -n 
 
 Only allowed subscribers can purchase the NFT license from publishers.
 
-ex: https://solana.fm/tx/533WMPLSLQRNpknXK1rYgvA93WJSNt1DAX9c3EzgHVCj38DC5o7GMTG1JbMj2dgZx96mVrCtdYvWHvq3YGKqubad?cluster=devnet-alpha
+ex: https://solana.fm/tx/533WMPLSLQRNpknXK1rYgvA93WJSNt1DAX9c3EzgHVCj38DC5o7GMTG1JbMj2dgZx96mVrCtdYvWHvq3YGKqubad?cluster=mainnet-alpha
 
 # Revoke license
 yarn script revoke-license -p B7Hd5i7xh92jXPC8NzC96f4vpgV8SfVw4WJ2zgPfR89S -n 3yeSAXxzijXDBwFYYitJokfPa1yJXnGbMhQFVS3hkkWc
