@@ -127,7 +127,7 @@ programCommand('update-user-role')
     .requiredOption('-u --user <string>', 'User')
     .requiredOption('-f --flag <number>', 'Is publisher')
     .action(async (directory, cmd) => {
-        const { user, flag, env, keypair, rpc } = cmd.opts();
+        const { user, flag, env,rpcurl, keypair, rpc } = cmd.opts();
 
         await setConnection({
             cluster: env as Cluster,
